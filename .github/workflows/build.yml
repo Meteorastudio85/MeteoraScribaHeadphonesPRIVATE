@@ -1,0 +1,42 @@
+name: Build SCRIBA Headphones
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            name: macOS
+          - os: windows-2022
+            name: Windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configura
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Compila
+        run: cmake --build build --config Release --parallel 4
+
+      # Se la build fallisce, ripete la compilazione mostrando SOLO gli errori
+      - name: Mostra errori (Windows)
+        if: failure() && runner.os == 'Windows'
+        run: cmake --build build --config Release -- /clp:ErrorsOnly /v:minimal
+
+      - name: Mostra errori (macOS)
+        if: failure() && runner.os == 'macOS'
+        run: cmake --build build --config Release 2>&1 | grep -E "error" || true
+
+      - name: Carica plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCRIBA-Headphones-${{ matrix.name }}
+          path: |
+            build/ScribaHeadphones_artefacts/Release/VST3
+            build/ScribaHeadphones_artefacts/Release/AU
